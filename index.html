@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>暗雲寶箱</title>
+    <meta name="claude:viewport-fit-sides" content="cover" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@600;900&family=Noto+Sans+TC:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <div id="stage"></div>
+
+    <!-- 進房：輸入 ID、選職業 -->
+    <div id="join" class="overlay">
+      <form id="joinForm" class="card">
+        <p class="eyebrow">FF14 7.1 · 暗之雲（滅） 通關</p>
+        <h1>暗雲寶箱</h1>
+        <p class="lede" id="joinLede">輸入你的 ID、選職業，建立房間後把邀請連結傳給隊友。走近寶箱就會打開。</p>
+        <label class="fld"
+          >你的 ID（顯示在角色頭上）
+          <input id="nameIn" maxlength="16" autocomplete="off" placeholder="例如：Azusa" />
+        </label>
+        <div class="fld">
+          職業
+          <div id="jobs"></div>
+        </div>
+        <button id="enter" type="submit" disabled>建立房間</button>
+        <p class="err" id="joinErr" hidden></p>
+        <p class="note" id="joinNote">一個房間最多 8 人。房主要一直開著這個網頁，房主關掉房間就會解散。</p>
+      </form>
+    </div>
+
+    <!-- 遊戲中 HUD -->
+    <div id="hud" hidden>
+      <aside id="side" class="panel">
+        <div id="roomBar">
+          <span id="roomCode"></span>
+          <button type="button" id="btnInvite">複製邀請連結</button>
+          <input id="inviteUrl" readonly hidden aria-label="邀請連結" />
+        </div>
+        <div id="roster"></div>
+        <div class="sidebtns">
+          <button type="button" id="btnLoot" hidden>戰利品</button>
+          <button type="button" id="btnRecord">紀錄</button>
+          <button type="button" id="btnMine">我的收藏</button>
+          <button type="button" id="btnSettings" hidden>掉落設定</button>
+        </div>
+      </aside>
+      <div id="chat" class="panel">
+        <div id="log"></div>
+        <form id="chatForm">
+          <input id="chatIn" maxlength="200" autocomplete="off" placeholder="按 Enter 聊天，/random 擲 1～999" />
+        </form>
+      </div>
+      <div id="help" class="panel">
+        <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移動　<kbd>空白</kbd> 跳躍　拖曳 轉視角　滾輪 縮放
+      </div>
+    </div>
+
+    <!-- 掉落清單 -->
+    <div id="loot" class="panel" hidden role="dialog" aria-labelledby="lootTitle">
+      <header>
+        <h2 id="lootTitle">戰利品</h2>
+        <span id="lootSub"></span>
+        <button id="lootClose" type="button" aria-label="關閉">×</button>
+      </header>
+      <div id="lootTimer"><div id="lootTimerFill"></div><span id="lootTimerTxt"></span></div>
+      <ul id="lootList"></ul>
+      <footer>
+        <span class="note" id="lootNote"></span>
+        <button id="lootReset" type="button">再放一箱（測試）</button>
+      </footer>
+    </div>
+
+    <!-- 紀錄：每個人拿過什麼＋每件物品的擲骰結果 -->
+    <div id="record" class="panel dlg" hidden role="dialog" aria-labelledby="recTitle">
+      <header>
+        <h2 id="recTitle">房間紀錄</h2>
+        <button type="button" class="x" data-close="record" aria-label="關閉">×</button>
+      </header>
+      <div class="dlgbody">
+        <h3>每個人拿到的物品</h3>
+        <div id="recTable"></div>
+        <h3>擲骰歷史（新的在上）</h3>
+        <ol id="recHist"></ol>
+      </div>
+    </div>
+
+    <!-- 我的收藏（存在自己的瀏覽器，換房間也看得到） -->
+    <div id="mine" class="panel dlg" hidden role="dialog" aria-labelledby="mineTitle">
+      <header>
+        <h2 id="mineTitle">我的收藏</h2>
+        <button type="button" class="x" data-close="mine" aria-label="關閉">×</button>
+      </header>
+      <div class="dlgbody">
+        <p class="note">存在這台電腦的瀏覽器裡，換房間也會保留。</p>
+        <div id="mineList"></div>
+        <button type="button" id="mineClear" class="ghost">清除我的收藏</button>
+        <p class="note" id="mineConfirm" hidden>
+          再按一次「清除我的收藏」確認（無法復原）。
+        </p>
+      </div>
+    </div>
+
+    <!-- 房主：掉落設定 -->
+    <div id="settings" class="panel dlg" hidden role="dialog" aria-labelledby="setTitle">
+      <header>
+        <h2 id="setTitle">掉落設定（房主）</h2>
+        <button type="button" class="x" data-close="settings" aria-label="關閉">×</button>
+      </header>
+      <form id="setForm" class="dlgbody">
+        <fieldset>
+          <legend>稀有物品出現方式</legend>
+          <label class="opt"><input type="radio" name="mode" value="rate" /> 機率模式：每件稀有物品各自有
+            <input type="number" id="setRate" min="0" max="100" step="1" /> % 機會出現</label>
+          <label class="opt"><input type="radio" name="mode" value="guarantee" /> 必出模式：每箱固定出
+            <select id="setCount"><option>1</option><option>2</option><option>3</option><option>4</option></select>
+            件稀有物品（不重複）</label>
+        </fieldset>
+        <label class="opt">擲骰倒數 <input type="number" id="setSecs" min="5" max="300" step="5" /> 秒</label>
+        <p class="note">設定從下一箱開始生效。機率為自訂，非官方數據。</p>
+        <button type="submit" class="primary">儲存設定</button>
+      </form>
+    </div>
+
+    <!-- 房主離開／連線中斷 -->
+    <div id="gone" class="overlay" hidden>
+      <div class="card">
+        <h1>房間已解散</h1>
+        <p class="lede" id="goneMsg"></p>
+        <button type="button" id="goneBtn" class="primary">回到首頁</button>
+      </div>
+    </div>
+
+    <div id="err" hidden></div>
+    <script src="js/boot.js"></script>
+  </body>
+</html>
