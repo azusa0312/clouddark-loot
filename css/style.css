@@ -1,0 +1,722 @@
+/* 暗雲寶箱：暗之雲的深紫夜色＋FF14 系統視窗的深藍面板與金色細邊（原創設計，不使用官方素材） */
+:root {
+  --void: #0c0716;
+  --panel: rgba(16, 18, 34, 0.9);
+  --panel-2: rgba(28, 30, 54, 0.92);
+  --edge: rgba(214, 186, 120, 0.55);
+  --ink: #efe9ff;
+  --mute: #a99fc4;
+  --gold: #f0cf74;
+  --rare: #c58bff;
+  --need: #5fb4ff;
+  --greed: #f0cf74;
+  --bad: #ff7272;
+  --display: 'Noto Serif TC', 'Songti TC', 'PMingLiU', serif;
+  --body: 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', system-ui, sans-serif;
+  color-scheme: dark;
+}
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--void);
+  color: var(--ink);
+  font: 14px/1.5 var(--body);
+}
+#stage {
+  position: fixed;
+  inset: 0;
+}
+#stage canvas {
+  display: block;
+  touch-action: none;
+}
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.6),
+    0 10px 30px rgba(0, 0, 0, 0.45);
+}
+kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 0 0.35em;
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  font: 600 12px/1.6 var(--body);
+  text-align: center;
+  color: var(--gold);
+}
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+/* ---------- 進房 ---------- */
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding-block: 24px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  background: radial-gradient(ellipse at 50% 40%, rgba(60, 30, 100, 0.25), rgba(8, 4, 16, 0.75));
+  overflow-y: auto;
+  z-index: 10;
+}
+.card {
+  width: min(560px, 100%);
+  padding: 28px 28px 22px;
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  display: grid;
+  gap: 14px;
+}
+.eyebrow {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  color: var(--rare);
+}
+h1 {
+  margin: 0;
+  font: 900 34px/1.1 var(--display);
+  color: var(--gold);
+  text-wrap: balance;
+}
+.lede {
+  margin: 0;
+  color: var(--mute);
+}
+.fld {
+  display: grid;
+  gap: 6px;
+  font-weight: 700;
+}
+.fld input {
+  padding: 10px 12px;
+  border: 1px solid var(--edge);
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--ink);
+  font: 500 16px var(--body);
+}
+#jobs {
+  display: grid;
+  gap: 6px;
+}
+.jobrow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.rolelbl {
+  width: 4.5em;
+  font-size: 12px;
+}
+.job {
+  padding: 5px 10px;
+  border: 1px solid color-mix(in srgb, var(--rc) 55%, transparent);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--ink);
+  font-size: 13px;
+}
+.job.on {
+  background: color-mix(in srgb, var(--rc) 45%, transparent);
+  border-color: var(--rc);
+  font-weight: 700;
+}
+#enter {
+  padding: 12px;
+  border: 1px solid var(--gold);
+  border-radius: 6px;
+  background: linear-gradient(180deg, #5a4a20, #3a2e12);
+  color: var(--gold);
+  font: 900 17px var(--display);
+  letter-spacing: 0.1em;
+}
+#enter:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--mute);
+}
+
+/* ---------- HUD ---------- */
+#side {
+  position: fixed;
+  top: max(12px, env(safe-area-inset-top, 0px));
+  right: max(12px, env(safe-area-inset-right, 0px));
+  width: 220px;
+  padding: 10px 12px;
+}
+#side h4 {
+  margin: 0 0 6px;
+  font: 700 13px var(--display);
+  color: var(--gold);
+}
+.mem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+}
+.mem i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.mem small {
+  margin-left: auto;
+  color: var(--mute);
+}
+#chat {
+  position: fixed;
+  left: max(12px, env(safe-area-inset-left, 0px));
+  bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  width: min(440px, calc(100vw - 24px));
+  display: grid;
+  padding: 0;
+  overflow: hidden;
+}
+#log {
+  max-height: 28vh;
+  overflow-y: auto;
+  padding: 8px 10px;
+  font-size: 13px;
+  display: grid;
+  gap: 1px;
+}
+#log .msg b {
+  font-weight: 700;
+}
+#log .msg.mine {
+  background: rgba(255, 255, 255, 0.04);
+}
+#log .rnd {
+  color: #ffb6e1;
+  font-weight: 700;
+}
+#chatForm {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+#chatIn {
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--ink);
+  font: 14px var(--body);
+  outline: none;
+}
+#chatIn:focus {
+  background: rgba(240, 207, 116, 0.08);
+  box-shadow: inset 0 0 0 1px var(--gold);
+}
+#roomBar {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 13px;
+}
+#roomCode b {
+  color: var(--gold);
+  letter-spacing: 0.15em;
+  font-size: 15px;
+}
+#btnInvite {
+  padding: 5px 8px;
+  border: 1px solid var(--gold);
+  border-radius: 4px;
+  background: rgba(240, 207, 116, 0.12);
+  color: var(--gold);
+  font-size: 12px;
+}
+#inviteUrl {
+  width: 100%;
+  padding: 4px 6px;
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.4);
+  color: var(--ink);
+  font-size: 11px;
+}
+.err {
+  margin: 0;
+  color: var(--bad);
+  font-weight: 700;
+}
+#gone {
+  z-index: 30;
+}
+#log .sys {
+  color: #ffe9a8;
+}
+#help {
+  position: fixed;
+  right: max(12px, env(safe-area-inset-right, 0px));
+  bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  padding: 6px 10px;
+  color: var(--mute);
+  font-size: 12px;
+}
+
+/* ---------- 掉落清單 ---------- */
+#loot {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  padding: 0;
+  z-index: 5;
+  animation: pop 0.25s ease-out;
+}
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -46%) scale(0.96);
+  }
+}
+#loot header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--edge);
+  background: linear-gradient(180deg, rgba(240, 207, 116, 0.12), transparent);
+}
+#loot h2 {
+  margin: 0;
+  font: 900 20px var(--display);
+  color: var(--gold);
+}
+#lootSub {
+  color: var(--rare);
+  font-weight: 700;
+}
+#lootClose {
+  margin-left: auto;
+  background: none;
+  border: 0;
+  color: var(--mute);
+  font-size: 22px;
+  line-height: 1;
+}
+#lootList {
+  list-style: none;
+  margin: 0;
+  padding: 8px;
+  display: grid;
+  gap: 6px;
+}
+#lootList li {
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 8px;
+  background: var(--panel-2);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 5px;
+}
+#lootList li.rare {
+  border-color: color-mix(in srgb, var(--rare) 60%, transparent);
+  box-shadow: inset 0 0 18px rgba(197, 139, 255, 0.18);
+}
+.ic {
+  width: 44px;
+  height: 44px;
+  padding: 4px;
+  border-radius: 5px;
+  background: radial-gradient(circle at 50% 35%, #3b4570, #161a30);
+  border: 1px solid var(--edge);
+  color: #d9def5;
+}
+.ic.rare {
+  background: radial-gradient(circle at 50% 35%, #6b3fa0, #1e1030);
+  border-color: var(--rare);
+  color: #f3e3ff;
+}
+.nm {
+  min-width: 0;
+  display: grid;
+}
+.nm b {
+  font-weight: 700;
+}
+li.rare .nm b {
+  color: var(--rare);
+}
+.nm small {
+  color: var(--mute);
+}
+.acts {
+  display: flex;
+  gap: 4px;
+}
+.acts button {
+  padding: 4px 8px;
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--ink);
+  font-size: 12px;
+}
+.acts button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+#loot footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 14px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+#loot footer .note {
+  flex: 1 1 220px;
+}
+#lootReset {
+  padding: 6px 12px;
+  border: 1px solid var(--gold);
+  border-radius: 5px;
+  background: rgba(240, 207, 116, 0.12);
+  color: var(--gold);
+}
+/* ---------- 側欄按鈕 ---------- */
+.sidebtns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.sidebtns button {
+  flex: 1 1 auto;
+  padding: 5px 8px;
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--ink);
+  font-size: 12px;
+}
+#btnLoot {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+/* ---------- 擲骰 ---------- */
+#lootTimer {
+  position: relative;
+  height: 22px;
+  margin: 8px 14px 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+#lootTimerFill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #8a6a20, var(--gold));
+  transition: width 0.15s linear;
+}
+#lootTimerTxt {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  text-shadow: 0 1px 2px #000;
+}
+.acts button.need {
+  border-color: var(--need);
+  color: var(--need);
+}
+.acts button.greed {
+  border-color: var(--greed);
+  color: var(--greed);
+}
+.acts button.pass {
+  color: var(--mute);
+}
+.acts button:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.chs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 3px;
+}
+.ch {
+  padding: 0 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--mute);
+}
+.ch.need {
+  color: var(--need);
+}
+.ch.greed {
+  color: var(--greed);
+}
+.ch.won {
+  background: rgba(240, 207, 116, 0.22);
+  color: #fff3c4;
+  font-weight: 700;
+}
+.res {
+  min-width: 6.5em;
+  text-align: right;
+  font-weight: 700;
+  color: var(--gold);
+}
+.res.me {
+  color: #9bffb7;
+}
+.res.none {
+  color: var(--mute);
+}
+.res.wait {
+  color: var(--ink);
+  display: grid;
+}
+.res small {
+  color: var(--mute);
+  font-weight: 400;
+}
+#lootList li.done {
+  opacity: 0.85;
+}
+#log .need {
+  color: #9fd4ff;
+}
+#log .greed {
+  color: #ffe28a;
+}
+#log .pass {
+  color: var(--mute);
+}
+#log .win {
+  color: #b6ffc8;
+  font-weight: 700;
+}
+
+/* ---------- 對話框（紀錄、我的收藏、設定） ---------- */
+.dlg {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  z-index: 6;
+}
+.dlg header {
+  display: flex;
+  align-items: center;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--edge);
+}
+.dlg h2 {
+  margin: 0;
+  font: 900 20px var(--display);
+  color: var(--gold);
+}
+.dlg .x {
+  margin-left: auto;
+  background: none;
+  border: 0;
+  color: var(--mute);
+  font-size: 22px;
+}
+.dlgbody {
+  padding: 10px 14px 16px;
+  display: grid;
+  gap: 10px;
+}
+.dlgbody h3 {
+  margin: 4px 0 0;
+  font: 700 14px var(--display);
+  color: var(--rare);
+}
+.dlgbody table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.dlgbody th,
+.dlgbody td {
+  padding: 5px 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  text-align: left;
+  vertical-align: top;
+}
+.dlgbody thead th {
+  color: var(--mute);
+  font-weight: 500;
+}
+.its {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.its span {
+  padding: 0 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.06);
+}
+.its .rare,
+#recHist b.rare {
+  color: var(--rare);
+}
+#recHist {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+}
+#recHist li {
+  padding: 5px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.04);
+}
+#recHist small {
+  display: block;
+  color: var(--mute);
+}
+#recHist .no {
+  color: var(--mute);
+  font-size: 12px;
+}
+#mineList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 6px;
+}
+.mi {
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 8px;
+  align-items: center;
+  padding: 6px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.04);
+  opacity: 0.5;
+}
+.mi.have {
+  opacity: 1;
+}
+.mi .ic {
+  width: 36px;
+  height: 36px;
+  grid-row: span 2;
+}
+.mi span {
+  font-size: 12px;
+}
+.mi b {
+  font-size: 12px;
+  color: var(--gold);
+}
+.mi.rare span {
+  color: var(--rare);
+}
+.ghost {
+  justify-self: start;
+  padding: 5px 10px;
+  border: 1px solid rgba(255, 114, 114, 0.5);
+  border-radius: 4px;
+  background: none;
+  color: var(--bad);
+  font-size: 12px;
+}
+#setForm fieldset {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 5px;
+  display: grid;
+  gap: 8px;
+}
+#setForm legend {
+  color: var(--rare);
+  font-weight: 700;
+}
+.opt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.opt input[type='number'],
+.opt select {
+  width: 4.5em;
+  padding: 3px 6px;
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.4);
+  color: var(--ink);
+  font: inherit;
+}
+.primary {
+  justify-self: start;
+  padding: 7px 16px;
+  border: 1px solid var(--gold);
+  border-radius: 5px;
+  background: rgba(240, 207, 116, 0.15);
+  color: var(--gold);
+  font-weight: 700;
+}
+#err {
+  position: fixed;
+  inset: 20px;
+  display: grid;
+  place-items: center;
+  color: var(--bad);
+  z-index: 20;
+}
+#err[hidden],
+[hidden] {
+  display: none !important;
+}
+@media (max-width: 640px) {
+  #side {
+    width: 160px;
+    font-size: 12px;
+  }
+  #lootList li {
+    grid-template-columns: 40px 1fr;
+  }
+  .acts {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+}
