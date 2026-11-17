@@ -36,6 +36,44 @@
       </form>
     </div>
 
+    <!-- 等待房間：人到齊後房主按開始 -->
+    <div id="lobby" class="overlay" hidden>
+      <div class="card lobbycard">
+        <p class="eyebrow">等待房間</p>
+        <h1>暗之雲（滅）</h1>
+        <div class="lobbyroom">
+          <span id="lobbyCode"></span>
+          <button type="button" id="lobbyInvite">複製邀請連結</button>
+        </div>
+        <input id="lobbyUrl" readonly hidden aria-label="邀請連結" />
+        <div id="lobbySlots"></div>
+        <p class="lede" id="lobbyStatus"></p>
+        <button type="button" id="lobbyStart" class="bigbtn" hidden>開始（申請進入）</button>
+        <p class="note">房主按「開始」後，每個人會跳出確認視窗；全員按「參加」才會一起進場地。有人取消或沒按，就回到這裡重來。</p>
+      </div>
+    </div>
+
+    <!-- 副本確認視窗（原創的 FF14 風格） -->
+    <div id="duty" hidden role="dialog" aria-labelledby="dutyTitle">
+      <div class="dutybox">
+        <header id="dutyTitle">副本準備完成</header>
+        <div class="dutybody">
+          <div class="dutyname">
+            <small>討伐殲滅戰</small>
+            <b>暗之雲（滅）</b>
+          </div>
+          <div id="dutySlots"></div>
+          <div id="dutyCount"></div>
+          <div class="dutytimer"><div id="dutyFill"></div></div>
+          <div class="dutybtns">
+            <button type="button" id="dutyYes">參加</button>
+            <button type="button" id="dutyNo">取消</button>
+          </div>
+          <p id="dutyWait" hidden>已確認參加，等待其他隊員…</p>
+        </div>
+      </div>
+    </div>
+
     <!-- 遊戲中 HUD -->
     <div id="hud" hidden>
       <aside id="side" class="panel">
@@ -52,16 +90,17 @@
           <button type="button" id="btnSettings" hidden>掉落設定</button>
         </div>
       </aside>
-      <div id="chat" class="panel">
+      <div id="help" class="panel">
+        <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移動　<kbd>空白</kbd> 跳躍　拖曳 轉視角　滾輪 縮放
+      </div>
+    </div>
+
+      <div id="chat" class="panel" hidden>
         <div id="log"></div>
         <form id="chatForm">
           <input id="chatIn" maxlength="200" autocomplete="off" placeholder="按 Enter 聊天，/random 擲 1～999" />
         </form>
       </div>
-      <div id="help" class="panel">
-        <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移動　<kbd>空白</kbd> 跳躍　拖曳 轉視角　滾輪 縮放
-      </div>
-    </div>
 
     <!-- 掉落清單 -->
     <div id="loot" class="panel" hidden role="dialog" aria-labelledby="lootTitle">
