@@ -65,8 +65,13 @@ $('joinForm').addEventListener('submit', (e) => {
   joinErr('');
   const label = $('enter').textContent;
   $('enter').disabled = true;
-  $('enter').textContent = '連線中…';
+  // 公開連線服務忙的時候，加入房間可能要十幾秒：顯示秒數，讓人知道沒有卡住
+  const t0 = performance.now();
+  const tick = () => ($('enter').textContent = `連線中…（${Math.floor((performance.now() - t0) / 1000)} 秒）`);
+  tick();
+  const ticker = setInterval(() => (joined || !connecting ? clearInterval(ticker) : tick()), 500);
   const fail = (msg) => {
+    clearInterval(ticker);
     connecting = false;
     $('enter').disabled = false;
     $('enter').textContent = label;

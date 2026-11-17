@@ -14,7 +14,8 @@ const PEER_OPTS = { debug: 0 };
 // 心跳：每 2 秒互傳一次；超過 9 秒沒收到對方任何訊息就當作斷線
 // （直接關掉瀏覽器時，WebRTC 不一定會馬上通知斷線）
 const HB_EVERY = 2000,
-  HB_TIMEOUT = 9000;
+  HB_TIMEOUT = 9000,
+  CONNECT_TIMEOUT = 30000; // 連線服務被網路擋住時最多等 30 秒（公開服務忙的時候，加入房間可能要 15 秒左右）
 
 const Net = {
   mode: 'solo', // solo / host / member
@@ -55,7 +56,13 @@ const Net = {
     if (!window.Peer) return onError('連線元件（PeerJS）載不到');
     const code = randomCode();
     const peer = (this.peer = new Peer(PEER_PREFIX + code, PEER_OPTS));
+    const giveUp = setTimeout(() => {
+      if (this.mode === 'host') return;
+      peer.destroy();
+      onError('連線服務沒有回應');
+    }, CONNECT_TIMEOUT);
     peer.on('open', (id) => {
+      clearTimeout(giveUp);
       this.mode = 'host';
       this.myId = this.hostId = id;
       this.code = code;
@@ -96,7 +103,10 @@ const Net = {
         peer.destroy();
         return this.host(onReady, onError);
       }
-      if (this.mode !== 'host') onError(peerErrText(e));
+      if (this.mode !== 'host') {
+        clearTimeout(giveUp);
+        onError(peerErrText(e));
+      }
     });
   },
   dropPeer(pid) {
@@ -110,7 +120,18 @@ const Net = {
   join(code, onOpen, onError, onClose) {
     if (!window.Peer) return onError('連線元件（PeerJS）載不到');
     const peer = (this.peer = new Peer(undefined, PEER_OPTS));
-    let opened = false;
+    let opened = false,
+      failed = false;
+    const fail = (msg) => {
+      if (opened || failed) return;
+      failed = true;
+      clearTimeout(giveUp);
+      onError(msg);
+    };
+    const giveUp = setTimeout(() => {
+      peer.destroy();
+      fail('連線逾時（連線服務沒有回應，或房主的網路擋住了直接連線）');
+    }, CONNECT_TIMEOUT);
     peer.on('open', (id) => {
       this.myId = id;
       this.hostId = PEER_PREFIX + code;
@@ -123,6 +144,8 @@ const Net = {
         onClose();
       };
       conn.on('open', () => {
+        if (failed) return;
+        clearTimeout(giveUp);
         opened = true;
         this.mode = 'member';
         this.lastHost = performance.now();
@@ -140,7 +163,7 @@ const Net = {
       conn.on('close', lost);
     });
     peer.on('error', (e) => {
-      if (!opened) onError(peerErrText(e));
+      if (!opened) fail(peerErrText(e));
     });
   },
   // 關掉網頁時主動告知（正常關閉可以立刻反應，不用等心跳逾時）
