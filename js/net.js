@@ -11,10 +11,12 @@
 
 const PEER_PREFIX = 'cdloot-v1-'; // Peer ID 前綴（避免跟別人的 PeerJS 專案撞名）
 const PEER_OPTS = { debug: 0 };
-// 心跳：每 2 秒互傳一次；超過 9 秒沒收到對方任何訊息就當作斷線
+// 心跳：每 2 秒互傳一次；超過 30 秒沒收到對方任何訊息就當作斷線
 // （直接關掉瀏覽器時，WebRTC 不一定會馬上通知斷線）
+// 逾時不能太短：電腦很忙或分頁切到背景時，計時器會被瀏覽器放慢，太短會把還在線上的人誤踢。
+// （正常關閉網頁會送 bye，可以立刻離開，不用等逾時）
 const HB_EVERY = 2000,
-  HB_TIMEOUT = 9000,
+  HB_TIMEOUT = 30000,
   CONNECT_TIMEOUT = 30000; // 連線服務被網路擋住時最多等 30 秒（公開服務忙的時候，加入房間可能要 15 秒左右）
 
 const Net = {
@@ -167,6 +169,11 @@ const Net = {
     });
   },
   // 關掉網頁時主動告知（正常關閉可以立刻反應，不用等心跳逾時）
+  // 分頁切回前景：立刻補送一次心跳
+  pingNow() {
+    if (this.mode === 'member' && this.hostConn && this.hostConn.open) this.hostConn.send({ type: 'ping' });
+    if (this.mode === 'host') Object.values(this.conns).forEach((c) => c.open && c.send({ type: 'hb' }));
+  },
   bye() {
     if (this.mode === 'member' && this.hostConn && this.hostConn.open) this.hostConn.send({ type: 'bye' });
     if (this.peer) this.peer.destroy();
@@ -193,3 +200,4 @@ function peerErrText(e) {
 }
 
 addEventListener('pagehide', () => Net.bye());
+document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && Net.pingNow());
