@@ -7,7 +7,8 @@ const CONFIG = {
   TEAM_COUNT: 1, // 隊伍數（實際副本是 3 隊；先做 1 隊）
   TEAM_SIZE: 8, // 每隊人數上限
   OPEN_RADIUS: 3.2, // 走到寶箱多近會打開（公尺）
-  ROLL_SECONDS: 30, // 需要／貪婪／放棄的倒數秒數（第 2 步使用）
+  ROLL_SECONDS: 30, // 需要／貪婪／放棄的倒數秒數
+  DUTY_SECS: 45, // 副本確認視窗的倒數秒數
   // 稀有物品出現方式（房主可在房間設定調整，第 2 步加入設定畫面）
   RARE_MODE: 'rate', // 'rate' = 每件各自機率；'guarantee' = 必出 N 件
   RARE_RATE: 0.15, // 每件稀有物品各自的出現機率（自訂，非官方數據）

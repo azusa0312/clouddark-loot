@@ -144,19 +144,36 @@ Room.on((evt) => {
     case 'joined':
       addAvatar(evt.player);
       if (evt.player.id === Net.myId) {
-        joined = true;
         $('join').hidden = true;
-        $('hud').hidden = false;
-        sysLog(`你以「${evt.player.name}」（${jobOf(evt.player.job).name}）進入了場地。走近寶箱就會打開。`);
-        showRoomBar();
-        const c = myChest();
-        if (c && c.opened) {
-          lootChestId = c.id;
-          renderLoot();
-          $('loot').hidden = false;
+        $('chat').hidden = false;
+        // 場地已經開始 → 直接進場地；否則先到等待房間
+        if (S.phase === 'field') enterField();
+        else {
+          sysLog('你進入了等待房間。按 Enter 可以聊天。');
+          renderLobby();
+          if (S.phase === 'ready') renderDuty();
         }
       } else sysLog(`${evt.player.name}（${jobOf(evt.player.job).name}）加入了房間。`);
       updateRoster();
+      renderLobby();
+      break;
+    case 'dutyPop':
+      sysLog('副本準備完成！請按「參加」。');
+      renderLobby();
+      renderDuty();
+      break;
+    case 'dutyAnswered':
+      renderDuty();
+      break;
+    case 'dutyCancelled':
+      $('duty').hidden = true;
+      sysLog(`副本確認取消：${evt.reason}。回到等待房間。`);
+      renderLobby();
+      break;
+    case 'dutyStart':
+      $('duty').hidden = true;
+      sysLog('全員確認完成，進入場地！');
+      enterField();
       break;
     case 'left': {
       const a = avatars[evt.id];
@@ -164,6 +181,7 @@ Room.on((evt) => {
       delete avatars[evt.id];
       sysLog(`${evt.name} 離開了房間。`);
       updateRoster();
+      renderLobby();
       if (lootChestId) renderLoot();
       break;
     }
@@ -491,6 +509,114 @@ function updateRoster() {
     .join('');
 }
 
+/* ---------- 等待房間與副本確認視窗 ---------- */
+// 進場地（全員按參加之後，或場地已經開始才加入的人）
+function enterField() {
+  if (joined) return;
+  joined = true;
+  // 聊天框移回左下角
+  document.body.appendChild($('chat'));
+  $('chat').classList.remove('inlobby');
+  $('lobby').hidden = true;
+  $('duty').hidden = true;
+  $('hud').hidden = false;
+  showRoomBar();
+  const me = Room.state.players[Net.myId];
+  sysLog(`你以「${me.name}」（${jobOf(me.job).name}）進入了場地。走近寶箱就會打開。`);
+  const c = myChest();
+  if (c && c.opened) {
+    lootChestId = c.id;
+    renderLoot();
+    $('loot').hidden = false;
+  }
+}
+function renderLobby() {
+  if (joined) return;
+  const S = Room.state;
+  $('lobby').hidden = false;
+  // 等待房間時，聊天框放進卡片裡（放在左下角會蓋住開始按鈕）
+  if (!$('chat').classList.contains('inlobby')) {
+    document.querySelector('.lobbycard').appendChild($('chat'));
+    $('chat').classList.add('inlobby');
+  }
+  if (Net.mode === 'solo') {
+    $('lobbyCode').textContent = '單人模式（沒有邀請連結）';
+    $('lobbyInvite').hidden = true;
+  } else {
+    $('lobbyCode').innerHTML = `房間代碼 <b>${Net.code}</b>`;
+    $('lobbyInvite').hidden = false;
+    $('lobbyUrl').value = Net.inviteUrl();
+  }
+  const members = S.teams.flatMap((tm) => tm.members);
+  const slots = [];
+  for (let i = 0; i < S.settings.TEAM_SIZE * S.teams.length; i++) {
+    const pid = members[i];
+    if (!pid) {
+      slots.push('<div class="slot empty"><i></i><span>空位</span></div>');
+      continue;
+    }
+    const p = S.players[pid],
+      j = jobOf(p.job);
+    const tag = [pid === Net.hostId ? '房主' : '', pid === Net.myId ? '你' : ''].filter(Boolean).join('・');
+    slots.push(
+      `<div class="slot" style="--rc:${ROLES[j.role].col}"><i>${j.name.slice(0, 1)}</i><span>${esc(p.name)}<small>${j.name}${tag ? '・' + tag : ''}</small></span></div>`,
+    );
+  }
+  $('lobbySlots').innerHTML = slots.join('');
+  const n = members.length,
+    max = S.settings.TEAM_SIZE * S.teams.length;
+  const waiting = S.phase === 'ready';
+  $('lobbyStart').hidden = !Net.isHost;
+  $('lobbyStart').disabled = waiting;
+  $('lobbyStart').textContent = waiting ? '確認中…' : '開始（申請進入）';
+  $('lobbyStatus').textContent = waiting
+    ? '副本確認中…'
+    : Net.isHost
+      ? `目前 ${n} / ${max} 人。人到齊後按「開始」。`
+      : `目前 ${n} / ${max} 人。等待房主開始…`;
+}
+$('lobbyStart').addEventListener('click', (e) => {
+  e.currentTarget.blur();
+  Net.toHost({ type: 'startDuty' });
+});
+$('lobbyInvite').addEventListener('click', (e) => copyInvite(e.currentTarget, $('lobbyUrl')));
+
+// 副本確認視窗
+function renderDuty() {
+  const d = Room.state.duty;
+  if (!d) return;
+  $('duty').hidden = false;
+  const ids = Object.keys(d.answers);
+  $('dutySlots').innerHTML = ids
+    .map((pid) => {
+      const p = Room.state.players[pid] || { name: '？', job: 'PLD' },
+        j = jobOf(p.job);
+      const st = d.answers[pid] === true ? 'ok' : d.answers[pid] === false ? 'no' : '';
+      return `<div class="dslot ${st}" style="--rc:${ROLES[j.role].col}" title="${esc(p.name)}"><i>${j.name.slice(0, 1)}</i><small>${esc(p.name)}</small></div>`;
+    })
+    .join('');
+  const okN = ids.filter((pid) => d.answers[pid] === true).length;
+  $('dutyCount').textContent = `已確認 ${okN} / ${ids.length}`;
+  const mine = d.answers[Net.myId];
+  const answered = mine === true || mine === false;
+  $('dutyYes').hidden = $('dutyNo').hidden = answered;
+  $('dutyWait').hidden = !answered;
+}
+function updateDutyTimer() {
+  const d = Room.state && Room.state.duty;
+  if (!d || $('duty').hidden) return;
+  const left = Math.max(0, (d.deadline - performance.now()) / 1000);
+  $('dutyFill').style.width = (left / d.secs) * 100 + '%';
+}
+$('dutyYes').addEventListener('click', (e) => {
+  e.currentTarget.blur();
+  Net.toHost({ type: 'dutyAnswer', ok: true });
+});
+$('dutyNo').addEventListener('click', (e) => {
+  e.currentTarget.blur();
+  Net.toHost({ type: 'dutyAnswer', ok: false });
+});
+
 /* ---------- 聊天室與邀請連結 ---------- */
 function chatLine(name, job, text, mine) {
   const d = document.createElement('div');
@@ -526,21 +652,22 @@ function showRoomBar() {
   $('btnInvite').hidden = false;
   $('inviteUrl').value = Net.inviteUrl();
 }
-$('btnInvite').addEventListener('click', async (e) => {
-  const b = e.currentTarget;
+async function copyInvite(b, urlBox) {
   b.blur();
   try {
     await navigator.clipboard.writeText(Net.inviteUrl());
     b.textContent = '已複製！';
   } catch (err) {
     // 不能寫剪貼簿 → 顯示網址讓人自己複製
-    $('inviteUrl').hidden = false;
-    $('inviteUrl').select();
-    b.textContent = '請手動複製下面的網址';
+    urlBox.value = Net.inviteUrl();
+    urlBox.hidden = false;
+    urlBox.select();
+    b.textContent = '請手動複製網址';
   }
   setTimeout(() => (b.textContent = '複製邀請連結'), 2000);
   sysLog(`邀請連結：${Net.inviteUrl()}`);
-});
+}
+$('btnInvite').addEventListener('click', (e) => copyInvite(e.currentTarget, $('inviteUrl')));
 
 /* ---------- 輸入：WASD、空白鍵跳躍、拖曳轉視角、滾輪縮放、手機搖桿 ---------- */
 const keys = {};
@@ -548,7 +675,7 @@ addEventListener('keydown', (e) => {
   const tag = e.target.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
   // Enter：開始打字聊天（跟 FF14 一樣）
-  if ((e.code === 'Enter' || e.code === 'NumpadEnter') && joined) {
+  if ((e.code === 'Enter' || e.code === 'NumpadEnter') && !$('chat').hidden) {
     e.preventDefault();
     Object.keys(keys).forEach((k) => (keys[k] = false));
     $('chatIn').focus();
@@ -720,6 +847,7 @@ function frame() {
     c.glow.material.opacity = c.target ? 0.05 : 0.14 + Math.sin(tAll * 3) * 0.06;
   });
   updateLootTimer();
+  updateDutyTimer();
   clouds.rotation.y += dt * 0.02;
   motes.rotation.y -= dt * 0.03;
   beam.material.opacity = 0.1 + Math.sin(tAll * 1.3) * 0.04;

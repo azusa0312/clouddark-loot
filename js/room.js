@@ -6,9 +6,15 @@
  *
  *   玩家 →（意圖 intent）→ 房主 Room.hostHandle → 檢查＋決定結果 →（事件 event）→ 所有人 Room.apply
  *
- * 意圖：join / leave / move / jump / openChest / choose / settings / resetChest / chat（含 /random）
+ * 意圖：join / leave / move / jump / openChest / choose / settings / resetChest / chat（含 /random）/
+ *       startDuty / dutyAnswer
  * 事件：welcome / full / joined / left / moved / jumped / chestOpened / chose / itemResolved / settings /
- *       chestReset / chat / random
+ *       chestReset / chat / random / dutyPop / dutyAnswered / dutyCancelled / dutyStart
+ *
+ * 進場流程（像 FF14 的副本申請）：
+ *   等待房間（phase=lobby）→ 房主按開始 → 每個人跳出確認視窗（phase=ready）
+ *   → 全員按「參加」就一起進場地（phase=field）；有人取消、倒數結束沒按、有人加入或離開 → 全員回等待房間。
+ *   進場後才加入的人直接進場地。
  *
  * 擲骰規則（照 FF14）：
  *   - 每件物品每人選一次：需要／貪婪／放棄。選需要或貪婪時房主當場擲 1～99（同一件物品內不重複）。
@@ -51,6 +57,8 @@ const Room = {
       history: [], // 每件物品的結果：{ item, winner, winnerName, c, roll, rolls, t }
       obtained: {}, // 每個人拿過什麼：{ pid: { name, items: { itemId: 次數 } } }
       chestNo: 0, // 開過幾箱
+      phase: 'lobby', // lobby 等待房間 / ready 副本確認中 / field 場地
+      duty: null, // 確認中：{ answers: { pid: null|true|false }, secs }
     };
   },
   teamOf(pid) {
@@ -93,8 +101,40 @@ const Room = {
             if (c.opened) c.left = Math.max(0, (c.deadline - performance.now()) / 1000);
           }),
         );
+        if (snap.duty) snap.duty.left = Math.max(0, (S.duty.deadline - performance.now()) / 1000);
         Net.sendTo(from, { type: 'welcome', you: from, state: snap });
         Net.broadcast({ type: 'joined', player });
+        // 確認視窗開著時有人加入 → 取消，回等待房間重來（新來的人也要確認）
+        if (S.phase === 'ready') this.cancelDuty(`${name} 加入了房間`);
+        return;
+      }
+      case 'startDuty': {
+        if (from !== Net.hostId || S.phase !== 'lobby') return;
+        const answers = {};
+        S.teams.forEach((tm) => tm.members.forEach((pid) => (answers[pid] = null)));
+        const secs = S.settings.DUTY_SECS;
+        Net.broadcast({ type: 'dutyPop', answers, secs });
+        clearTimeout(this.dutyTimer);
+        this.dutyTimer = setTimeout(() => {
+          const d = this.state.duty;
+          if (this.state.phase !== 'ready' || !d) return;
+          const late = Object.keys(d.answers)
+            .filter((pid) => d.answers[pid] !== true)
+            .map((pid) => (this.state.players[pid] || {}).name || '？');
+          this.cancelDuty(`時間到，${late.join('、')} 沒有按參加`);
+        }, secs * 1000);
+        return;
+      }
+      case 'dutyAnswer': {
+        const d = S.duty;
+        if (S.phase !== 'ready' || !d || !(from in d.answers) || d.answers[from] !== null) return;
+        const ok = !!msg.ok;
+        Net.broadcast({ type: 'dutyAnswered', pid: from, ok });
+        if (!ok) return this.cancelDuty(`${S.players[from].name} 取消了`);
+        if (Object.values(S.duty.answers).every((x) => x === true)) {
+          clearTimeout(this.dutyTimer);
+          Net.broadcast({ type: 'dutyStart' });
+        }
         return;
       }
       case 'leave': {
@@ -102,6 +142,7 @@ const Room = {
         const p = S.players[from];
         if (!p) return;
         Net.broadcast({ type: 'left', id: from, name: p.name });
+        if (S.phase === 'ready') this.cancelDuty(`${p.name} 離開了房間`);
         S.teams[p.team].chests.forEach((c) => {
           if (c.opened) c.items.forEach((it, i) => this.maybeResolve(c.id, i, false));
         });
@@ -189,6 +230,13 @@ const Room = {
     }
   },
 
+  /* ---------- 房主：副本確認取消 → 回等待房間 ---------- */
+  cancelDuty(reason) {
+    clearTimeout(this.dutyTimer);
+    if (this.state.phase !== 'ready') return;
+    Net.broadcast({ type: 'dutyCancelled', reason });
+  },
+
   /* ---------- 房主：擲骰與判定 ---------- */
   // 1～99，同一件物品內不重複
   freshRoll(it) {
@@ -243,9 +291,25 @@ const Room = {
             if (c.opened) c.deadline = performance.now() + (c.left || 0) * 1000;
           }),
         );
+        if (st.duty) st.duty.deadline = performance.now() + (st.duty.left || 0) * 1000;
         this.state = st;
         break;
       }
+      case 'dutyPop':
+        S.phase = 'ready';
+        S.duty = { answers: evt.answers, secs: evt.secs, deadline: performance.now() + evt.secs * 1000 };
+        break;
+      case 'dutyAnswered':
+        if (S.duty) S.duty.answers[evt.pid] = evt.ok;
+        break;
+      case 'dutyCancelled':
+        S.phase = 'lobby';
+        S.duty = null;
+        break;
+      case 'dutyStart':
+        S.phase = 'field';
+        S.duty = null;
+        break;
       case 'joined': {
         const p = evt.player;
         S.players[p.id] = p;
