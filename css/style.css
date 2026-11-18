@@ -973,3 +973,10 @@ li.rare .nm b {
     justify-content: flex-end;
   }
 }
+
+/* 已經有人拿到、只能放棄的物品 */
+#lootList .lock {
+  display: block;
+  font-style: normal;
+  color: #f0a35a;
+}
