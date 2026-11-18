@@ -282,9 +282,10 @@ function myChest() {
   return me ? Room.state.teams[me.team].chests[0] : null;
 }
 function settingsText(s) {
-  return s.RARE_MODE === 'guarantee'
-    ? `稀有物品必出 ${s.RARE_COUNT} 件`
-    : `稀有物品各自 ${Math.round(s.RARE_RATE * 100)}%`;
+  const base =
+    s.RARE_MODE === 'guarantee' ? `稀有物品必出 ${s.RARE_COUNT} 件` : `稀有物品各自 ${Math.round(s.RARE_RATE * 100)}%`;
+  const once = (s.ONCE_ITEMS || []).map((id) => itemDef(id).name);
+  return once.length ? `${base}；${once.join('、')} 有人拿到後只能放棄` : base;
 }
 function renderLootNote() {
   const s = Room.state.settings;
@@ -299,6 +300,8 @@ function renderLoot() {
     .map((it, i) => {
       const d = itemDef(it.id);
       const mine = it.choices[Net.myId];
+      // 已經有人拿到過、設定成只能放棄的物品（判定前才算；拿到的那一箱照常顯示）
+      const lockedBy = !it.done && Room.lockedItem(it.id);
       // 每個人的選擇（點數大的在前）
       const others = Object.entries(it.choices)
         .map(([pid, x]) => ({ pid, ...x, name: (S.players[pid] || {}).name || '？' }))
@@ -317,7 +320,11 @@ function renderLoot() {
       } else if (mine) {
         const val = mine.c === 'pass' ? '' : ' ' + mine.roll;
         act = `<div class="res wait">你：${CHOICE_NAME[mine.c]}${val}<small>等其他人…</small></div>`;
-      } else
+      } else if (lockedBy)
+        act = `<div class="acts">
+          <button type="button" class="pass" data-i="${i}" data-c="pass">放棄</button>
+        </div>`;
+      else
         act = `<div class="acts">
           <button type="button" class="need" data-i="${i}" data-c="need">需要</button>
           <button type="button" class="greed" data-i="${i}" data-c="greed">貪婪</button>
@@ -325,7 +332,7 @@ function renderLoot() {
         </div>`;
       return `<li class="${it.rare ? 'rare' : ''} ${it.done ? 'done' : ''}">
         ${iconSvg(d, it.rare)}
-        <div class="nm"><b>${d.name}</b><small>${KIND_NAME[d.kind]}${it.rare ? '・稀有' : ''}</small>
+        <div class="nm"><b>${d.name}</b><small>${KIND_NAME[d.kind]}${it.rare ? '・稀有' : ''}${lockedBy ? `<em class="lock">${esc(lockedBy)} 已經拿到過，只能放棄</em>` : ''}</small>
           <div class="chs">${others}</div></div>
         ${act}
       </li>`;
@@ -476,6 +483,10 @@ $('btnSettings').addEventListener('click', (e) => {
   $('setRate').value = Math.round(s.RARE_RATE * 100);
   $('setCount').value = String(s.RARE_COUNT);
   $('setSecs').value = s.ROLL_SECONDS;
+  $('setOnce').innerHTML = RARE_ITEMS.map(
+    (r) =>
+      `<label class="opt"><input type="checkbox" name="once" value="${r.id}" ${(s.ONCE_ITEMS || []).includes(r.id) ? 'checked' : ''} /> ${r.name}（${KIND_NAME[r.kind]}）</label>`,
+  ).join('');
   $('settings').hidden = false;
 });
 $('setForm').addEventListener('submit', (e) => {
@@ -487,6 +498,7 @@ $('setForm').addEventListener('submit', (e) => {
       RARE_RATE: +$('setRate').value / 100,
       RARE_COUNT: +$('setCount').value,
       ROLL_SECONDS: +$('setSecs').value,
+      ONCE_ITEMS: [...document.querySelectorAll('#setOnce input:checked')].map((x) => x.value),
     },
   });
   $('settings').hidden = true;

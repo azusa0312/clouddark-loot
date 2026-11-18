@@ -200,7 +200,8 @@ const Room = {
         if (!p || !f || !f.chest.opened || f.team.id !== p.team) return;
         const it = f.chest.items[msg.idx];
         if (!it || it.done || it.choices[from]) return; // 已判定或已經選過
-        const c = CHOICES.includes(msg.choice) ? msg.choice : 'pass';
+        let c = CHOICES.includes(msg.choice) ? msg.choice : 'pass';
+        if (this.lockedItem(it.id)) c = 'pass'; // 房間內已經有人拿到 → 只能放棄
         const roll = c === 'pass' ? 0 : this.freshRoll(it);
         Net.broadcast({ type: 'chose', chest: f.chest.id, idx: msg.idx, pid: from, c, roll });
         this.maybeResolve(f.chest.id, msg.idx, false);
@@ -214,6 +215,7 @@ const Room = {
           RARE_RATE: Math.max(0, Math.min(1, +s.RARE_RATE || 0)),
           RARE_COUNT: Math.max(1, Math.min(RARE_ITEMS.length, Math.round(+s.RARE_COUNT || 1))),
           ROLL_SECONDS: Math.max(5, Math.min(300, Math.round(+s.ROLL_SECONDS || 30))),
+          ONCE_ITEMS: RARE_ITEMS.map((r) => r.id).filter((id) => (s.ONCE_ITEMS || []).includes(id)),
         };
         Net.broadcast({ type: 'settings', settings: clean });
         return;
@@ -235,6 +237,14 @@ const Room = {
     clearTimeout(this.dutyTimer);
     if (this.state.phase !== 'ready') return;
     Net.broadcast({ type: 'dutyCancelled', reason });
+  },
+
+  // 這件物品是否「房間內有人拿到後只能放棄」且已經有人拿到
+  lockedItem(id) {
+    const S = this.state;
+    if (!(S.settings.ONCE_ITEMS || []).includes(id)) return null;
+    const o = Object.values(S.obtained).find((x) => x.items[id]);
+    return o ? o.name : null;
   },
 
   /* ---------- 房主：擲骰與判定 ---------- */
