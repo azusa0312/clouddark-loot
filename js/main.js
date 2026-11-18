@@ -355,12 +355,24 @@ function updateLootTimer() {
   $('lootTimerFill').style.width = allDone ? '0%' : (left / c.secs) * 100 + '%';
   $('lootTimerTxt').textContent = allDone ? '全部判定完成' : `剩餘 ${Math.ceil(left)} 秒（沒選的會自動放棄）`;
 }
-$('lootClose').addEventListener('click', () => ($('loot').hidden = true));
-$('btnLoot').addEventListener('click', (e) => {
-  e.currentTarget.blur();
-  if (!lootChestId) return;
+function showLoot(id) {
+  lootChestId = id;
   renderLoot();
   $('loot').hidden = false;
+  $('btnLoot').hidden = false;
+}
+function closeLoot() {
+  if ($('loot').hidden) return;
+  $('loot').hidden = true;
+  sysLog('戰利品視窗已關閉：走回寶箱旁邊，或按右邊的「戰利品」就能再打開。');
+}
+$('lootClose').addEventListener('click', (e) => {
+  e.currentTarget.blur();
+  closeLoot();
+});
+$('btnLoot').addEventListener('click', (e) => {
+  e.currentTarget.blur();
+  if (lootChestId) showLoot(lootChestId);
 });
 $('lootReset').addEventListener('click', (e) => {
   e.currentTarget.blur();
@@ -686,7 +698,10 @@ addEventListener('keydown', (e) => {
     if (joined) jump();
     return;
   }
-  if (e.code === 'Escape') ['loot', 'record', 'mine', 'settings'].forEach((id) => ($(id).hidden = true));
+  if (e.code === 'Escape') {
+    closeLoot();
+    ['record', 'mine', 'settings'].forEach((id) => ($(id).hidden = true));
+  }
   keys[e.code] = true;
 });
 addEventListener('keyup', (e) => (keys[e.code] = false));
@@ -802,13 +817,18 @@ function updateMe(dt) {
   checkChests(a);
 }
 // 走近自己隊的寶箱 → 請房主開箱（每個箱子只送一次）
-const openRequested = {};
+const openRequested = {},
+  wasInside = {};
 function checkChests(a) {
   const me = Room.state.players[Net.myId];
   if (!me) return;
   Room.state.teams[me.team].chests.forEach((c) => {
     const d = Math.hypot(a.x - c.x, a.z - c.z);
     if (openRequested[c.id] === 'leave' && d > CONFIG.OPEN_RADIUS + 0.5) openRequested[c.id] = false;
+    // 已經開過的箱子：關掉視窗後，走出光圈再走回來就重新打開戰利品視窗
+    const inside = d < CONFIG.OPEN_RADIUS;
+    if (c.opened && inside && !wasInside[c.id] && $('loot').hidden) showLoot(c.id);
+    wasInside[c.id] = inside;
     if (c.opened || openRequested[c.id]) return;
     if (d < CONFIG.OPEN_RADIUS) {
       openRequested[c.id] = true;
